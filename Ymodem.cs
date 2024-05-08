@@ -27,35 +27,42 @@ namespace Ymodem
 
 
         public static byte C { get; set; } = 67;
+        /* control signals */
+        // 1k 数据头
+        const byte STX = 2;  // Start of TeXt 
+                             // EOT 04H 发送结束
+        const byte EOT = 4;  // End Of Transmission
+                             // 确认消息
+        const byte ACK = 6;  // Positive ACknowledgement
+                             // const byte C = 67;   // 4*16 + 3 capital letter C
+
+        /* sizes */
+        const int dataSize = 1024;
+        const int crcSize = 2;
 
         // const byte C = 67;   // 4*16 + 3 capital letter C
 
         public void YmodemUploadFile()
         {
-            /* control signals */
-            // 1k 数据头
-            const byte STX = 2;  // Start of TeXt 
-            // EOT 04H 发送结束
-            const byte EOT = 4;  // End Of Transmission
-            // 确认消息
-            const byte ACK = 6;  // Positive ACknowledgement
-            // const byte C = 67;   // 4*16 + 3 capital letter C
-            
-            /* sizes */
-            const int dataSize = 1024;
-            const int crcSize = 2;
-
             /* THE PACKET: 1029 bytes */
             /* header: 3 bytes */
             // STX
-            int packetNumber = 0;
-            int invertedPacketNumber = 255;
+            int packetNum = 0;
+            int invertedPacketNum = 255;
             /* data: 1024 bytes */
             byte[] data = new byte[dataSize];
             /* footer: 2 bytes */
             byte[] CRC = new byte[crcSize];
             /* get the file */
-            FileStream fileStream = new FileStream(@path, FileMode.Open, FileAccess.Read);
+            FileStream fileStream1 = new FileStream(@path, FileMode.Open, FileAccess.Read);
+
+            MemoryStream ms1 = new MemoryStream();
+            fileStream1.CopyTo(ms1);
+            fileStream1.Dispose();
+            fileStream1 = null;
+            ms1.Position = 0;
+            long fileAllDataCount = ms1.Length;
+
             serialPort.PortName = portName; 
             serialPort.BaudRate = 921600;
             // 
@@ -86,7 +93,7 @@ namespace Ymodem
                     Console.WriteLine(" begin the transfer.");
                 }
                 //
-                sendYmodemInitialPacket(STX, packetNumber, invertedPacketNumber, data, dataSize, path, fileStream, CRC, crcSize);
+                sendYmodemInitialPacket(STX, packetNum, invertedPacketNum, data, dataSize, path, ms1, CRC, crcSize);
                 //
                 byte temp = (byte)serialPort.ReadByte();
                 if (temp != ACK)//(serialPort.ReadByte() != ACK)
@@ -108,7 +115,7 @@ namespace Ymodem
                 aa = this.serialPort.Read(array, 0, array.Length);
                 Console.WriteLine("清空缓存; array len:" + array.Length);
 
-                long fileAllDataCount = fileStream.Length;
+                 
                 var currentFileCount = 0;
 
                 /* send packets with a cycle until we send the last byte */
@@ -117,7 +124,7 @@ namespace Ymodem
                 {
                     data = new byte[dataSize];
                     /* if this is the last packet fill the remaining bytes with 0 */
-                    fileReadCount = fileStream.Read(data, 0, dataSize);
+                    fileReadCount = ms1.Read(data, 0, dataSize);
                     if (fileReadCount == 0)
                     {
                         break;
@@ -133,20 +140,17 @@ namespace Ymodem
                     }
 
                     /* calculate packetNumber */
-                    packetNumber++;
-                    if (packetNumber > 255)
-                        packetNumber -= 256;
-                    //Console.WriteLine(packetNumber);
-
-                    /* calculate invertedPacketNumber */
-                    invertedPacketNumber = 255 - packetNumber;
+                    packetNum++;
+                    if (packetNum > 255) packetNum -= 256;
+                    /* calculate invertedPacketNum */
+                    invertedPacketNum = 255 - packetNum;
 
                     /* calculate CRC */
                     Crc16Ccitt crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
                     CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
                     /* send the packet */
-                    sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, dataSize, CRC, crcSize);
+                    sendYmodemPacket(STX, packetNum, invertedPacketNum, data, dataSize, CRC, crcSize);
                     currentFileCount += dataSize;
                     // 新进度条计算
                     float _p = (float)currentFileCount / fileAllDataCount * 100;
@@ -175,30 +179,21 @@ namespace Ymodem
                 /* send EOT (tell the downloader we are finished) */
                 serialPort.Write(new byte[] { EOT }, 0, 1);
                 /* send closing packet */
-                packetNumber = 0;
-                invertedPacketNumber = 255;
+                packetNum = 0;
+                invertedPacketNum = 255;
                 data = new byte[dataSize];
                 CRC = new byte[crcSize];
 
+                sendYmodemClosingPacket(STX, packetNum, invertedPacketNum, data, dataSize, CRC, crcSize);
 
-                sendYmodemClosingPacket(STX, packetNumber, invertedPacketNumber, data, dataSize, CRC, crcSize);
-                /* get ACK (downloader acknowledge the EOT) */
-                //if (serialPort.ReadByte() != ACK)
-                //{
-                //    Console.WriteLine("Can't complete the transfer.");
-                //    DownloadResultEvent.Invoke(false, new EventArgs());
-                //    return;// false;
-                //}
             }
             catch (TimeoutException)
             {
                 throw new Exception("Eductor does not answering");
-                
             }
             finally
             {
-                fileStream.Close();
-
+                ms1.Close();
             }
             serialPort.Close();
             Console.WriteLine("File transfer is succesful");
@@ -206,7 +201,7 @@ namespace Ymodem
             return;// true;
         }
 
-        private void sendYmodemInitialPacket(byte STX, int packetNumber, int invertedPacketNumber, byte[] data, int dataSize, string path, FileStream fileStream, byte[] CRC, int crcSize)
+        private void sendYmodemInitialPacket(byte STX, int packetNumber, int invertedPacketNumber, byte[] data, int dataSize, string path, Stream fileStream, byte[] CRC, int crcSize)
         {
             string fileName = System.IO.Path.GetFileName(path);
             string fileSize = fileStream.Length.ToString();

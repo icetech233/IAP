@@ -18,7 +18,7 @@ namespace IAP
         {
             InitializeComponent();
         }
-      
+
         private void mainForm_Load(object sender, EventArgs e)
         {
             foreach (string s in System.IO.Ports.SerialPort.GetPortNames())
@@ -52,6 +52,7 @@ namespace IAP
                 button.Text = "正在下载";
                 ymodem = new Ymodem.Ymodem();
                 ymodem.Path = pathTextBox.Text.ToString();
+
                 ymodem.PortName = SerialPortComboBox.SelectedItem.ToString();
                 ymodem.BaudRate = 921600;// Convert.ToInt32(BaudRateComboBox.SelectedItem.ToString());
                 downloadThread = new System.Threading.Thread(ymodem.YmodemUploadFile);
