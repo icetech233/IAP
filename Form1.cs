@@ -77,9 +77,9 @@ namespace IAP
         private delegate void DownloadFinish(bool finish);
         private void DownloadFinishEvent(object sender, EventArgs e)
         {
-            bool finish = (Boolean)sender;
+            bool finish = (bool)sender;
             DownloadFinish status = new DownloadFinish(UploadFileResult);
-            this.Invoke(status,finish);
+            this.Invoke(status, finish);
         }
         private void UploadFileResult(bool result)
         {

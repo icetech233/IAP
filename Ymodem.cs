@@ -54,33 +54,29 @@ namespace Ymodem
             byte[] data = new byte[dataSize];
             /* footer: 2 bytes */
             byte[] CRC = new byte[crcSize];
-
             /* get the file */
             FileStream fileStream = new FileStream(@path, FileMode.Open, FileAccess.Read);
             serialPort.PortName = portName; 
             serialPort.BaudRate = 921600;
-
-
+            // 
             serialPort.DataBits = 8;
             serialPort.StopBits = StopBits.One;
             serialPort.Parity = Parity.None;
-
+            // 
             serialPort.Open();
             try
             {
-
                 // 清空缓存 
                 byte[] array = new byte[1024];
                 int aa = this.serialPort.Read(array, 0, array.Length);
                 Console.WriteLine("清空缓存clean read cache; array len:" + array.Length);
-
 
                 //serialPort.Write(new byte[] { 0x31 }, 0, 1);
                 /* send the initial packet with filename and filesize */
                 if (serialPort.ReadByte() != C)
                 { 
                     Console.WriteLine("Can't begin the transfer.");
- 
+
                     serialPort.Close();
                     DownloadResultEvent.Invoke(false, new EventArgs());
                     return;// false;
@@ -88,13 +84,11 @@ namespace Ymodem
                 else 
                 { 
                     Console.WriteLine(" begin the transfer.");
-
                 }
- 
+                //
                 sendYmodemInitialPacket(STX, packetNumber, invertedPacketNumber, data, dataSize, path, fileStream, CRC, crcSize);
-               // Thread.Sleep(5000);
+                //
                 byte temp = (byte)serialPort.ReadByte();
-                Console.WriteLine("init temp"+temp);
                 if (temp != ACK)//(serialPort.ReadByte() != ACK)
                 {
                     Console.WriteLine("Can't send the initial packet.");
@@ -110,9 +104,12 @@ namespace Ymodem
                 Console.WriteLine("过了2");
 
                 // 清空换成
-                array = new byte[this.serialPort.BytesToRead];
+                array = new byte[1024];
                 aa = this.serialPort.Read(array, 0, array.Length);
-                Console.WriteLine("清空缓存clean read cache; array len:" + array.Length);
+                Console.WriteLine("清空缓存; array len:" + array.Length);
+
+                long fileAllDataCount = fileStream.Length;
+                var currentFileCount = 0;
 
                 /* send packets with a cycle until we send the last byte */
                 int fileReadCount;
@@ -150,12 +147,14 @@ namespace Ymodem
 
                     /* send the packet */
                     sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, dataSize, CRC, crcSize);
-                    int progress = (int)(((float)dataSize * packetNumber) / fileStream.Length * 100);
-                    Console.WriteLine("progress:  " + progress);
+                    currentFileCount += dataSize;
+                    // 新进度条计算
+                    float _p = (float)currentFileCount / fileAllDataCount * 100;
+                    int progress = (int)_p;
                     if (progress > 100) progress = 100;
                     NowDownloadProgressEvent.Invoke(progress, new EventArgs());
                     // 
-                    Thread.Sleep(40);
+                    Thread.Sleep(30);
                     // 59 6D 6F 64 65   6D 5F 52 65 63      65 69 76 65 20      20 32 0D 0A
                     /* wait for ACK */
                     array = new byte[19];
@@ -203,7 +202,7 @@ namespace Ymodem
             }
             serialPort.Close();
             Console.WriteLine("File transfer is succesful");
-            DownloadResultEvent.Invoke(true,new EventArgs());
+            DownloadResultEvent.Invoke(true, new EventArgs());
             return;// true;
         }
 
