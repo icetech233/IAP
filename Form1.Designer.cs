@@ -43,7 +43,8 @@
             this.pathTextBox.Location = new System.Drawing.Point(31, 47);
             this.pathTextBox.Name = "pathTextBox";
             this.pathTextBox.Size = new System.Drawing.Size(480, 31);
-            this.pathTextBox.TabIndex = 0;
+            this.pathTextBox.TabIndex = 41234;
+            this.pathTextBox.Text = "D:\\IIG1000E_STM_2.4.6_DEV_GWTOOL.bin";
             // 
             // selectFileButton
             // 
@@ -62,7 +63,7 @@
             this.SerialPortComboBox.Location = new System.Drawing.Point(31, 12);
             this.SerialPortComboBox.Name = "SerialPortComboBox";
             this.SerialPortComboBox.Size = new System.Drawing.Size(100, 29);
-            this.SerialPortComboBox.TabIndex = 2;
+            this.SerialPortComboBox.TabIndex = 0;
             // 
             // BaudRateComboBox
             // 
@@ -76,7 +77,7 @@
             this.BaudRateComboBox.Location = new System.Drawing.Point(158, 12);
             this.BaudRateComboBox.Name = "BaudRateComboBox";
             this.BaudRateComboBox.Size = new System.Drawing.Size(100, 29);
-            this.BaudRateComboBox.TabIndex = 3;
+            this.BaudRateComboBox.TabIndex = 33;
             // 
             // DownloadProgressBar
             // 
@@ -95,7 +96,7 @@
             this.downloadButton.Location = new System.Drawing.Point(531, 86);
             this.downloadButton.Name = "downloadButton";
             this.downloadButton.Size = new System.Drawing.Size(90, 31);
-            this.downloadButton.TabIndex = 5;
+            this.downloadButton.TabIndex = 1;
             this.downloadButton.Text = "开始下载";
             this.downloadButton.UseVisualStyleBackColor = true;
             this.downloadButton.Click += new System.EventHandler(this.downloadButton_Click);

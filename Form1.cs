@@ -86,8 +86,8 @@ namespace IAP
         {
             if (result == true)
             {
-                MessageBox.Show("下载成功");
-                this.downloadButton.Text = "开始下载";
+                //MessageBox.Show("下载成功");
+                this.downloadButton.Text = "下载成功";
                 this.DownloadProgressBar.Value = 0;
             }
             else

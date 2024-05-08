@@ -20,8 +20,8 @@ namespace Ymodem
          * Upload file via Ymodem protocol to the device
          * ret: is the transfer succeeded? true is if yes
          */
-        private string path;
-        public string Path{get {return Path;} set { path = value; } }
+        public string Path { get; set; }
+
         private string portName;
         public string PortName { get { return portName; } set { portName = value; } }
         private int baudRate;
@@ -47,6 +47,8 @@ namespace Ymodem
 
         public void YmodemUploadFile()
         {
+            Console.WriteLine(DateTime.Now.ToString() + "UploadFile start");
+
             /* THE PACKET: 1029 bytes */
             /* header: 3 bytes */
             // STX
@@ -57,7 +59,7 @@ namespace Ymodem
             /* footer: 2 bytes */
             byte[] CRC = new byte[2];
             /* get the file */
-            FileStream fileStream1 = new FileStream(@path, FileMode.Open, FileAccess.Read);
+            FileStream fileStream1 = new FileStream(Path, FileMode.Open, FileAccess.Read);
 
             MemoryStream ms1 = new MemoryStream();
             fileStream1.CopyTo(ms1);
@@ -73,13 +75,15 @@ namespace Ymodem
             serialPort.StopBits = StopBits.One;
             serialPort.Parity = Parity.None;
             // 
+            Console.WriteLine(DateTime.Now.ToString() + "serialPort open before");
             serialPort.Open();
             try
             {
+                Console.WriteLine(DateTime.Now.ToString() + "serialPort open after");
                 // 清空缓存 
-                byte[] array = new byte[1024];
+                byte[] array = new byte[64];
                 int aa = this.serialPort.Read(array, 0, array.Length);
-                Console.WriteLine("清空缓存clean read cache; array len:" + array.Length);
+                Console.WriteLine(DateTime.Now.ToString() + "清空缓存clean read cache; array len:" + aa + "v" + array[0]);
 
                 //serialPort.Write(new byte[] { 0x31 }, 0, 1);
                 /* send the initial packet with filename and filesize */
@@ -96,7 +100,9 @@ namespace Ymodem
                     Console.WriteLine(" begin the transfer.");
                 }
                 //
-                sendYmodemInitialPacket(packetNum, invertedPacketNum, data, path, ms1, CRC);
+                Console.WriteLine(DateTime.Now.ToString() + "InitialPacket before");
+                sendYmodemInitialPacket(packetNum, invertedPacketNum, data, Path, ms1, CRC);
+                Console.WriteLine(DateTime.Now.ToString() + "InitialPacket after");
                 //
                 byte temp = (byte)serialPort.ReadByte();
                 if (temp != ACK)//(serialPort.ReadByte() != ACK)
@@ -105,22 +111,20 @@ namespace Ymodem
                     DownloadResultEvent.Invoke(false, new EventArgs());
                     return;// false;
                 }
-                Console.WriteLine("过了1");
+                Console.WriteLine(DateTime.Now.ToString() + "过了1");
                 if (serialPort.ReadByte() != C)
                 {
                     DownloadResultEvent.Invoke(false, new EventArgs());
                     return;// false;
                 }
-                Console.WriteLine("过了2");
+                Console.WriteLine(DateTime.Now.ToString() + "过了2");
 
                 // 清空换成
-                array = new byte[1024];
+                array = new byte[64];
                 aa = this.serialPort.Read(array, 0, array.Length);
-                Console.WriteLine("清空缓存; array len:" + array.Length);
+                Console.WriteLine("清空缓存; array len:" + aa + "v" + array[0]);
 
-                 
                 var currentFileCount = 0;
-
                 /* send packets with a cycle until we send the last byte */
                 int fileReadCount;
                 do
@@ -149,8 +153,8 @@ namespace Ymodem
                     invertedPacketNum = 255 - packetNum;
 
                     /* calculate CRC */
-                    Crc16Ccitt crc16Ccitt = new Crc16Ccitt();
-                    CRC = crc16Ccitt.ComputeChecksumBytes(data);
+                    // Crc16Ccitt crc16Ccitt = new Crc16Ccitt();
+                    CRC = Crc16Ccitt.GetSingle().ComputeChecksumBytes(data);
 
                     /* send the packet */
                     SendYmodemPacket(packetNum, invertedPacketNum, data, CRC);
@@ -160,16 +164,14 @@ namespace Ymodem
                     int progress = (int)_p;
                     if (progress > 100) progress = 100;
                     NowDownloadProgressEvent.Invoke(progress, new EventArgs());
-                    // 
-                    Thread.Sleep(30);
+                    //
+                    Thread.Sleep(10);
                     // 59 6D 6F 64 65   6D 5F 52 65 63      65 69 76 65 20      20 32 0D 0A
                     /* wait for ACK */
                     array = new byte[19];
                     this.serialPort.Read(array, 0, array.Length);
                     // 
                     temp = (byte)serialPort.ReadByte();
-                    Console.WriteLine("temp,*," + temp);
-                    // 
                     if (temp != ACK)
                     {
                         Console.WriteLine("temp,*," + temp);
@@ -178,7 +180,7 @@ namespace Ymodem
                         return;// false;
                     }
                 } while (1024 == fileReadCount);
-
+                Console.WriteLine("data end" + DateTime.Now.ToString());
                 /* send EOT (tell the downloader we are finished) */
                 serialPort.Write(new byte[] { EOT }, 0, 1);
                 /* send closing packet */
@@ -186,9 +188,9 @@ namespace Ymodem
                 invertedPacketNum = 255;
                 data = new byte[1024];
                 CRC = new byte[2];
-
+                Console.WriteLine(DateTime.Now.ToString() + "ClosingPacket before");
                 sendYmodemClosingPacket(packetNum, invertedPacketNum, data, CRC);
-
+                Console.WriteLine("close packet end" + DateTime.Now.ToString());
             }
             catch (TimeoutException)
             {
@@ -232,8 +234,8 @@ namespace Ymodem
             }
 
             /* calculate CRC */
-            Crc16Ccitt crc16Ccitt = new Crc16Ccitt( );
-            CRC = crc16Ccitt.ComputeChecksumBytes(data);
+            //Crc16Ccitt crc16Ccitt = new Crc16Ccitt();
+            CRC = Crc16Ccitt.GetSingle().ComputeChecksumBytes(data);
 
             /* send the packet */
             SendYmodemPacket(packetNumber, invertedPacketNumber, data, CRC);
@@ -242,8 +244,8 @@ namespace Ymodem
         private void sendYmodemClosingPacket(int pn, int ipn, byte[] data, byte[] crc)
         {
             /* calculate CRC */
-            Crc16Ccitt crc16Ccitt = new Crc16Ccitt();
-            crc = crc16Ccitt.ComputeChecksumBytes(data);
+            // Crc16Ccitt crc16Ccitt = new Crc16Ccitt();
+            crc = Crc16Ccitt.GetSingle().ComputeChecksumBytes(data);
 
             /* send the packet */
             SendYmodemPacket(pn, ipn, data, crc);
@@ -254,11 +256,12 @@ namespace Ymodem
             serialPort.Write(new byte[] { STX }, 0, 1);
             serialPort.Write(new byte[] { (byte)pn }, 0, 1);
             serialPort.Write(new byte[] { (byte)ipn }, 0, 1);
-            Console.WriteLine("packetNum:" + pn + "\rinvertedPacketNum:" + ipn);
+            // Console.WriteLine("packetNum:" + pn + "\rinvertedPacketNum:" + ipn);
             serialPort.Write(data, 0, 1024);
             serialPort.Write(CRC, 0, 2);
         }
     }
+
     public class Crc16Ccitt
     {
         const ushort poly = 4129;
@@ -277,11 +280,15 @@ namespace Ymodem
 
         public byte[] ComputeChecksumBytes(byte[] bytes)
         {
-            ushort crc = ComputeChecksum(bytes);
-            return BitConverter.GetBytes(crc);
+            return BitConverter.GetBytes(ComputeChecksum(bytes));
         }
 
-        public Crc16Ccitt()
+        public static Crc16Ccitt GetSingle() 
+        {
+            return new Crc16Ccitt();
+        }
+
+        private Crc16Ccitt()
         {
             this.initialValue = (ushort)0;
             ushort temp, a;
@@ -304,5 +311,9 @@ namespace Ymodem
                 table[i] = temp;
             }
         }
+
+
     }
+
+
 }
