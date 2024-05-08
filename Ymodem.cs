@@ -6,7 +6,12 @@ using IAP;
 using System.IO.Ports;
 namespace Ymodem
 {
-    public enum InitialCrcValue { Zeros, NonZero1 = 0xffff, NonZero2 = 0x1D0F }
+    public enum InitialCrcValue
+    {
+        Zeros,
+        NonZero1 = 0xffff,
+        NonZero2 = 0x1D0F
+    }
     
     public class Ymodem
     {
@@ -144,7 +149,7 @@ namespace Ymodem
                     invertedPacketNum = 255 - packetNum;
 
                     /* calculate CRC */
-                    Crc16Ccitt crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
+                    Crc16Ccitt crc16Ccitt = new Crc16Ccitt();
                     CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
                     /* send the packet */
@@ -227,7 +232,7 @@ namespace Ymodem
             }
 
             /* calculate CRC */
-            Crc16Ccitt crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
+            Crc16Ccitt crc16Ccitt = new Crc16Ccitt( );
             CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
             /* send the packet */
@@ -237,7 +242,7 @@ namespace Ymodem
         private void sendYmodemClosingPacket(int pn, int ipn, byte[] data, byte[] crc)
         {
             /* calculate CRC */
-            Crc16Ccitt crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
+            Crc16Ccitt crc16Ccitt = new Crc16Ccitt();
             crc = crc16Ccitt.ComputeChecksumBytes(data);
 
             /* send the packet */
@@ -276,9 +281,9 @@ namespace Ymodem
             return BitConverter.GetBytes(crc);
         }
 
-        public Crc16Ccitt(InitialCrcValue initialValue)
+        public Crc16Ccitt()
         {
-            this.initialValue = (ushort)0xffff;
+            this.initialValue = (ushort)0;
             ushort temp, a;
             for (int i = 0; i < table.Length; ++i)
             {
