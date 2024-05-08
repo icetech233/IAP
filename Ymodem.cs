@@ -35,10 +35,8 @@ namespace Ymodem
                              // 确认消息
         const byte ACK = 6;  // Positive ACknowledgement
                              // const byte C = 67;   // 4*16 + 3 capital letter C
-
         /* sizes */
-        const int dataSize = 1024;
-        const int crcSize = 2;
+        // const int dataSize = 1024;
 
         // const byte C = 67;   // 4*16 + 3 capital letter C
 
@@ -50,9 +48,9 @@ namespace Ymodem
             int packetNum = 0;
             int invertedPacketNum = 255;
             /* data: 1024 bytes */
-            byte[] data = new byte[dataSize];
+            byte[] data = new byte[1024];
             /* footer: 2 bytes */
-            byte[] CRC = new byte[crcSize];
+            byte[] CRC = new byte[2];
             /* get the file */
             FileStream fileStream1 = new FileStream(@path, FileMode.Open, FileAccess.Read);
 
@@ -93,7 +91,7 @@ namespace Ymodem
                     Console.WriteLine(" begin the transfer.");
                 }
                 //
-                sendYmodemInitialPacket(STX, packetNum, invertedPacketNum, data, dataSize, path, ms1, CRC, crcSize);
+                sendYmodemInitialPacket(packetNum, invertedPacketNum, data, path, ms1, CRC);
                 //
                 byte temp = (byte)serialPort.ReadByte();
                 if (temp != ACK)//(serialPort.ReadByte() != ACK)
@@ -122,18 +120,18 @@ namespace Ymodem
                 int fileReadCount;
                 do
                 {
-                    data = new byte[dataSize];
+                    data = new byte[1024];
                     /* if this is the last packet fill the remaining bytes with 0 */
-                    fileReadCount = ms1.Read(data, 0, dataSize);
+                    fileReadCount = ms1.Read(data, 0, 1024);
                     if (fileReadCount == 0)
                     {
                         break;
                     }
                     // 
-                    if (fileReadCount != dataSize) 
+                    if (fileReadCount != 1024) 
                     {
                         // 数据帧 用 0x1a 补全
-                        for (int i = fileReadCount; i < dataSize; i++) 
+                        for (int i = fileReadCount; i < 1024; i++) 
                         {
                             data[i] = 0x1A;
                         }
@@ -150,8 +148,8 @@ namespace Ymodem
                     CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
                     /* send the packet */
-                    sendYmodemPacket(STX, packetNum, invertedPacketNum, data, dataSize, CRC, crcSize);
-                    currentFileCount += dataSize;
+                    SendYmodemPacket(packetNum, invertedPacketNum, data, CRC);
+                    currentFileCount += 1024;
                     // 新进度条计算
                     float _p = (float)currentFileCount / fileAllDataCount * 100;
                     int progress = (int)_p;
@@ -174,17 +172,17 @@ namespace Ymodem
                         DownloadResultEvent.Invoke(false, new EventArgs());
                         return;// false;
                     }
-                } while (dataSize == fileReadCount);
+                } while (1024 == fileReadCount);
 
                 /* send EOT (tell the downloader we are finished) */
                 serialPort.Write(new byte[] { EOT }, 0, 1);
                 /* send closing packet */
                 packetNum = 0;
                 invertedPacketNum = 255;
-                data = new byte[dataSize];
-                CRC = new byte[crcSize];
+                data = new byte[1024];
+                CRC = new byte[2];
 
-                sendYmodemClosingPacket(STX, packetNum, invertedPacketNum, data, dataSize, CRC, crcSize);
+                sendYmodemClosingPacket(packetNum, invertedPacketNum, data, CRC);
 
             }
             catch (TimeoutException)
@@ -201,10 +199,10 @@ namespace Ymodem
             return;// true;
         }
 
-        private void sendYmodemInitialPacket(byte STX, int packetNumber, int invertedPacketNumber, byte[] data, int dataSize, string path, Stream fileStream, byte[] CRC, int crcSize)
+        private void sendYmodemInitialPacket(int packetNumber, int invertedPacketNumber, byte[] data, string path, Stream ms1, byte[] CRC)
         {
             string fileName = System.IO.Path.GetFileName(path);
-            string fileSize = fileStream.Length.ToString();
+            string fileSize = ms1.Length.ToString();
             Console.WriteLine("ymode init fileSize" + fileSize);
             /* add filename to data */
             int i;
@@ -223,7 +221,7 @@ namespace Ymodem
             data[(i + 1) + j] = 0;
 
             /* fill the remaining data bytes with 0 */
-            for (int k = ((i + 1) + j) + 1; k < dataSize; k++)
+            for (int k = ((i + 1) + j) + 1; k < 1024; k++)
             {
                 data[k] = 0;
             }
@@ -233,27 +231,27 @@ namespace Ymodem
             CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
             /* send the packet */
-            sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, dataSize, CRC, crcSize);
+            SendYmodemPacket(packetNumber, invertedPacketNumber, data, CRC);
         }
 
-        private void sendYmodemClosingPacket(byte STX, int packetNumber, int invertedPacketNumber, byte[] data, int dataSize, byte[] CRC, int crcSize)
+        private void sendYmodemClosingPacket(int pn, int ipn, byte[] data, byte[] crc)
         {
             /* calculate CRC */
             Crc16Ccitt crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
-            CRC = crc16Ccitt.ComputeChecksumBytes(data);
+            crc = crc16Ccitt.ComputeChecksumBytes(data);
 
             /* send the packet */
-            sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, dataSize, CRC, crcSize);
+            SendYmodemPacket(pn, ipn, data, crc);
         }
 
-        private void sendYmodemPacket(byte STX, int packetNumber, int invertedPacketNumber, byte[] data, int dataSize, byte[] CRC, int crcSize)
+        private void SendYmodemPacket(int pn, int ipn, byte[] data, byte[] CRC)
         {
             serialPort.Write(new byte[] { STX }, 0, 1);
-            serialPort.Write(new byte[] { (byte)packetNumber }, 0, 1);
-            serialPort.Write(new byte[] { (byte)invertedPacketNumber }, 0, 1);
-            Console.WriteLine("\rpacketNumber:" + packetNumber + "\rinvertedPacketNumber:" + invertedPacketNumber);
-            serialPort.Write(data, 0, dataSize);
-            serialPort.Write(CRC, 0, crcSize);
+            serialPort.Write(new byte[] { (byte)pn }, 0, 1);
+            serialPort.Write(new byte[] { (byte)ipn }, 0, 1);
+            Console.WriteLine("packetNum:" + pn + "\rinvertedPacketNum:" + ipn);
+            serialPort.Write(data, 0, 1024);
+            serialPort.Write(CRC, 0, 2);
         }
     }
     public class Crc16Ccitt
