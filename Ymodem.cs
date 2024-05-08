@@ -79,12 +79,13 @@ namespace Ymodem
             serialPort.Open();
             try
             {
+                NowDownloadProgressEvent.Invoke(5, new EventArgs());
                 Console.WriteLine(DateTime.Now.ToString() + "serialPort open after");
                 // Çå¿Õ»º´æ 
                 byte[] array = new byte[64];
                 int aa = this.serialPort.Read(array, 0, array.Length);
                 Console.WriteLine(DateTime.Now.ToString() + "Çå¿Õ»º´æclean read cache; array len:" + aa + "v" + array[0]);
-
+                NowDownloadProgressEvent.Invoke(7, new EventArgs());
                 //serialPort.Write(new byte[] { 0x31 }, 0, 1);
                 /* send the initial packet with filename and filesize */
                 if (serialPort.ReadByte() != C)
@@ -96,15 +97,17 @@ namespace Ymodem
                     return;// false;
                 }
                 else 
-                { 
+                {
                     Console.WriteLine(" begin the transfer.");
                 }
+                NowDownloadProgressEvent.Invoke(9, new EventArgs());
                 //
                 Console.WriteLine(DateTime.Now.ToString() + "InitialPacket before");
                 sendYmodemInitialPacket(packetNum, invertedPacketNum, data, Path, ms1, CRC);
                 Console.WriteLine(DateTime.Now.ToString() + "InitialPacket after");
                 //
                 byte temp = (byte)serialPort.ReadByte();
+                NowDownloadProgressEvent.Invoke(11, new EventArgs());
                 if (temp != ACK)//(serialPort.ReadByte() != ACK)
                 {
                     Console.WriteLine("Can't send the initial packet.");
@@ -123,10 +126,11 @@ namespace Ymodem
                 array = new byte[64];
                 aa = this.serialPort.Read(array, 0, array.Length);
                 Console.WriteLine("Çå¿Õ»º´æ; array len:" + aa + "v" + array[0]);
-
+                //
                 var currentFileCount = 0;
                 /* send packets with a cycle until we send the last byte */
                 int fileReadCount;
+                //
                 do
                 {
                     data = new byte[1024];
@@ -190,7 +194,7 @@ namespace Ymodem
                 CRC = new byte[2];
                 Console.WriteLine(DateTime.Now.ToString() + "ClosingPacket before");
                 sendYmodemClosingPacket(packetNum, invertedPacketNum, data, CRC);
-                Console.WriteLine("close packet end" + DateTime.Now.ToString());
+                Console.WriteLine(DateTime.Now.ToString() + "close packet end");
             }
             catch (TimeoutException)
             {
